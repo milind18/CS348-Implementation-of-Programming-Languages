@@ -1,10 +1,13 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+//opcode table
 map<string, string> optab;
+//symbol table
 map<string, string> symtab;
 
-string start_address;
+string start_address = "0000";
+string prog_name = "";
 string loc_ctr;
 string prog_length;
 string curr_ctr;
@@ -14,6 +17,8 @@ string addr;
 string label;
 string operation;
 string operand;
+
+bool wasReserve = false;
 
 void init_opcode()
 {
@@ -42,6 +47,7 @@ void init_opcode()
     return;
 }
 
+// function to parse each line of .asm file
 void parse_line(string line, vector<string> &parsed)
 {
     stringstream checkcomment(line);
@@ -75,6 +81,7 @@ void parse_line(string line, vector<string> &parsed)
     return;
 }
 
+// function to parse each line of intermmediate file
 void parse_line2(string line, vector<string> &parsed)
 {
     stringstream checkcomment(line);
@@ -102,6 +109,7 @@ void parse_line2(string line, vector<string> &parsed)
     return;
 }
 
+// function to read lines from the .asm file
 int read_line(ifstream &fin, vector<string> &parsed, string &code_line)
 {
     string line;
@@ -118,6 +126,7 @@ int read_line(ifstream &fin, vector<string> &parsed, string &code_line)
     return 1;
 }
 
+//function to read lines from the intermmediate file
 int read_line2(ifstream &fin, vector<string> &parsed, string &code_line)
 {
     string line;
@@ -138,8 +147,11 @@ int read_line2(ifstream &fin, vector<string> &parsed, string &code_line)
     operand = parsed[4];
     return 1;
 }
+
+//converting  a hexadecimal string to a long long int
 long long from_hex(string a)
 {
+
     int n = a.size();
     long long ans = 0;
     for (int i = 0; i < n; i++)
@@ -165,6 +177,7 @@ long long from_hex(string a)
     return ans;
 }
 
+//converting a long long int to a hexadecimal string
 string to_hex(long long a)
 {
     if (a == 0)
@@ -194,6 +207,7 @@ string to_hex(long long a)
     return ans;
 }
 
+//converting a hexadecimal string to a decimal number
 long long num(string a)
 {
     long long ans = 0;
@@ -205,6 +219,7 @@ long long num(string a)
     return ans;
 }
 
+// function to add a prefix of zeroes to make the total length of string a 'length'
 string pad_zero(string a, int length = 6)
 {
     int k = a.size();
@@ -226,6 +241,7 @@ string pad_zero(string a, int length = 6)
     return b;
 }
 
+// Function to process operand and check if it contains a symbol
 string isSymbol(string operand)
 {
     if (operand == "-")
@@ -254,12 +270,13 @@ string isSymbol(string operand)
     }
 }
 
+// Converting immediate operands to object code
 string convert_to_objectcode(string operand)
 {
     // X' C'
     if (operand.substr(0, 2) == "X'")
     {
-        return operand.substr(2, operand.size() - 2);
+        return operand.substr(2, operand.size() - 3);
     }
     if (operand.substr(0, 2) == "C'")
     {
@@ -275,13 +292,26 @@ string convert_to_objectcode(string operand)
     cout << "Unrecognized constant";
     return "";
 }
-int main()
+
+int main(int argc, char* argv[])
 {
     //Open the file containing the code
+    if(argc <=1)
+    {
+        cout << "Provide assembly file name as command line argument\n";
+        exit(0);
+    }
     ifstream fin;
     ofstream fout;
-    fin.open("code.in");
-    fout.open("inter.out");
+    ofstream listing;
+    fin.open(argv[1]);
+    if(fin.is_open() == false)
+    {
+        cout << "File not found in directory\n";
+        exit(0);
+    }
+    fout.open("intermmediate.txt");
+    listing.open("listing.txt");
     init_opcode();
 
     //Pass 1
@@ -292,6 +322,7 @@ int main()
     read_line(fin, parsed, code_line);
     if (parsed[2] == "START")
     {
+        prog_name = parsed[1];
         start_address = parsed[3];
         loc_ctr = start_address;
         //Write line
@@ -309,7 +340,7 @@ int main()
         if (parsed[0] != ".")
         {
             //If there is a symbol in the label field
-            if (parsed[1] != "")
+            if (parsed[1] != "" && parsed[1] != "-")
             {
                 bool found_sym;
                 //Search for symbol
@@ -327,6 +358,9 @@ int main()
                 if (found_sym)
                 {
                     //!Set error flag
+                    cerr << "Error: Multiple definitions of symbol: "<< parsed[1] <<endl;
+                    cout << code_line;
+
                 }
                 else
                 {
@@ -362,23 +396,27 @@ int main()
             else if (parsed[2] == "RESW")
             {
                 //Add 3*#[Operand] to loc_ctr
-                loc_ctr = to_hex(from_hex(loc_ctr) + 3* num(parsed[3]));
+                loc_ctr = to_hex(from_hex(loc_ctr) + 3 * num(parsed[3]));
             }
             else if (parsed[2] == "RESB")
             {
-                loc_ctr = to_hex(from_hex(loc_ctr)+ num(parsed[3]));
+                loc_ctr = to_hex(from_hex(loc_ctr) + num(parsed[3]));
             }
             else if (parsed[2] == "BYTE")
             {
                 //find length of constant in bytes
-                int constLength = parsed[3].size();
+                int constLength = parsed[3].size() - 3;
+                if (parsed[3][0] == 'X')
+                {
+                    constLength = (constLength + 1) / 2;
+                }
                 //add length to loc_ctr
                 loc_ctr = to_hex(from_hex(loc_ctr) + constLength);
             }
             else
             {
                 //!set error flag (invalid opcode)
-                cout<<"Operation not found";
+                cerr << "Error: Operation not found";
                 exit(0);
             }
         }
@@ -402,21 +440,23 @@ int main()
     //End of pass 1
     fout.close();
     fin.close();
-
+    cout << "Intermmediate file created...\n";
     //Pass 2
-    fin.open("inter.out");
-    fout.open("final.out");
+    fin.open("intermmediate.txt");
+    fout.open("objectcode.txt");
     parsed.resize(5);
     read_line2(fin, parsed, code_line);
 
+    
+    //Need to fix this if START does not exist
+    fout << left << "H" << setw(6) << prog_name << pad_zero(start_address) << pad_zero(to_hex(prog_length)) << endl;
     if (parsed[3] == "START")
     {
         //Write listing line
+        listing << code_line << endl;
+        read_line2(fin, parsed, code_line);
     }
-    //Need to fix this if START does not exist
-    fout << left << "H" << setw(6) << parsed[2] << pad_zero(parsed[4]) << pad_zero(to_hex(prog_length))<<endl;
-
-    read_line2(fin, parsed, code_line);
+    
 
     stringstream textrecord;
     textrecord.str("");
@@ -434,19 +474,24 @@ int main()
                 found_opcode = true;
                 opcode = optab[operation];
                 string symbol = isSymbol(operand);
+
                 string operand_address;
                 if (symbol != "")
                 {
                     if (symtab.find(symbol) != symtab.end())
                     {
                         operand_address = symtab[symbol];
+                        if (operand.size() >= 2 && operand.substr(operand.size() - 2, 2) == ",X")
+                        {
+                            operand_address = to_hex(from_hex(operand_address) + 32768);
+                        }
                         //cout << operand_address << endl;
                     }
                     else
                     {
                         operand_address = "0";
-                        cout << "symbol not found: " << symbol;
-                        //set error flag
+                        cerr << "Error: Symbol ("<<symbol << ") not found\n";
+                        exit(0);
                     }
                 }
                 else
@@ -466,8 +511,8 @@ int main()
                     string newoperand = pad_zero(to_hex(stoi(operand)));
                     if (newoperand.size() > 6)
                     {
-                        cout << "Size of integer constant too large to fit in a word\n";
-                        //error flag
+                        cerr << "Error: Size of integer constant too large to fit in a word \n";
+                        exit(0);
                     }
                     objcode << newoperand;
                 }
@@ -478,50 +523,66 @@ int main()
                     objcode << newoperand;
                 }
             }
-            cout << objcode.str() << endl;
+
             if (operation == "RESW" || operation == "RESB")
             {
-                if(textrecord.str() == "")
+                listing << code_line << endl;
+                if (wasReserve == false)
                 {
-                    begin_addr = "T" + addr;
-                }
-                fout << begin_addr << " "<<to_hex(textrecord.str().size()).substr(2,2) << textrecord.str()<<endl;
-                //cout<< to_hex(textrecord.str().size())<<" byte"<<endl;
+                    wasReserve = true;
+                    if (textrecord.str() == "")
+                    {
+                        begin_addr = "T" + pad_zero(addr);
+                    }
+                    fout << begin_addr << to_hex((textrecord.str().size()) / 2).substr(2, 2) << textrecord.str() << endl;
+                    //cout<< to_hex(textrecord.str().size())<<" byte"<<endl;
 
-                textrecord.str("");
+                    textrecord.str("");
+                }
             }
             else
             {
-                if (textrecord.str().size() > 53)
+                wasReserve = false;
+                if (textrecord.str().size() > 54)
                 {
-                    cout<< textrecord.str().size()<<endl;
-                    fout << begin_addr <<" "<< to_hex(textrecord.str().size()).substr(2,2) << textrecord.str()<<endl;
-                    begin_addr = "T" + addr;
+                    listing << code_line << " " << objcode.str() << endl;
+                    fout << begin_addr << to_hex((textrecord.str().size()) / 2).substr(2, 2) << textrecord.str() << endl;
+                    begin_addr = "T" + pad_zero(addr);
                     textrecord.str("");
                     textrecord << objcode.str();
                     objcode.str("");
                 }
                 else if (textrecord.str() == "")
                 {
-                    begin_addr = "T" + addr;
+                    listing << code_line << " " << objcode.str() << endl;
+                    begin_addr = "T" + pad_zero(addr);
                     textrecord << objcode.str();
                     objcode.str("");
                 }
                 else
                 {
+                    listing << code_line << " " << objcode.str() << endl;
                     textrecord << objcode.str();
                     objcode.str("");
                 }
-                
             }
         }
-        
+        else
+        {
+            listing << code_line << endl;
+        }
+
         read_line2(fin, parsed, code_line);
     }
-    if(textrecord.str() != "")
+    if (textrecord.str() != "")
     {
-        fout << begin_addr <<" "<< to_hex(textrecord.str().size()).substr(2,2) << textrecord.str()<<endl;
+        fout << begin_addr << to_hex((textrecord.str().size()) / 2).substr(2, 2) << textrecord.str() << endl;
     }
-    fout <<"E"<<pad_zero(start_address);
+    listing << code_line << endl;
+    fout << "E" << pad_zero(start_address);
+
+    cout << "Listing file generated...\n";
+    cout << "Object file generated ...\n";
+    cout << "Assembly successful\n";
     return 0;
 }
