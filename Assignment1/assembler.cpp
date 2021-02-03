@@ -293,10 +293,10 @@ string convert_to_objectcode(string operand)
     return "";
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     //Open the file containing the code
-    if(argc <=1)
+    if (argc <= 1)
     {
         cout << "Provide assembly file name as command line argument\n";
         exit(0);
@@ -305,7 +305,7 @@ int main(int argc, char* argv[])
     ofstream fout;
     ofstream listing;
     fin.open(argv[1]);
-    if(fin.is_open() == false)
+    if (fin.is_open() == false)
     {
         cout << "File not found in directory\n";
         exit(0);
@@ -358,9 +358,8 @@ int main(int argc, char* argv[])
                 if (found_sym)
                 {
                     //!Set error flag
-                    cerr << "Error: Multiple definitions of symbol: "<< parsed[1] <<endl;
+                    cerr << "Error: Multiple definitions of symbol: " << parsed[1] << endl;
                     cout << code_line;
-
                 }
                 else
                 {
@@ -447,7 +446,6 @@ int main(int argc, char* argv[])
     parsed.resize(5);
     read_line2(fin, parsed, code_line);
 
-    
     //Need to fix this if START does not exist
     fout << left << "H" << setw(6) << prog_name << pad_zero(start_address) << pad_zero(to_hex(prog_length)) << endl;
     if (parsed[3] == "START")
@@ -456,7 +454,6 @@ int main(int argc, char* argv[])
         listing << code_line << endl;
         read_line2(fin, parsed, code_line);
     }
-    
 
     stringstream textrecord;
     textrecord.str("");
@@ -490,7 +487,7 @@ int main(int argc, char* argv[])
                     else
                     {
                         operand_address = "0";
-                        cerr << "Error: Symbol ("<<symbol << ") not found\n";
+                        cerr << "Error: Symbol (" << symbol << ") not found\n";
                         exit(0);
                     }
                 }
