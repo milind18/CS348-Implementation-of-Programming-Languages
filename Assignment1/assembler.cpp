@@ -169,7 +169,7 @@ string to_hex(long long a)
 {
     if (a == 0)
     {
-        return "0";
+        return "0000";
     }
     string ans;
     while (a > 0)
@@ -362,7 +362,11 @@ int main()
             else if (parsed[2] == "RESW")
             {
                 //Add 3*#[Operand] to loc_ctr
-                loc_ctr = to_hex(from_hex(loc_ctr) + num(parsed[3]));
+                loc_ctr = to_hex(from_hex(loc_ctr) + 3* num(parsed[3]));
+            }
+            else if (parsed[2] == "RESB")
+            {
+                loc_ctr = to_hex(from_hex(loc_ctr)+ num(parsed[3]));
             }
             else if (parsed[2] == "BYTE")
             {
@@ -374,6 +378,8 @@ int main()
             else
             {
                 //!set error flag (invalid opcode)
+                cout<<"Operation not found";
+                exit(0);
             }
         }
         //write line to intermediate file
@@ -408,7 +414,7 @@ int main()
         //Write listing line
     }
     //Need to fix this if START does not exist
-    fout << left << "H" << setw(6) << parsed[2] << pad_zero(parsed[4]) << pad_zero(to_hex(prog_length));
+    fout << left << "H" << setw(6) << parsed[2] << pad_zero(parsed[4]) << pad_zero(to_hex(prog_length))<<endl;
 
     read_line2(fin, parsed, code_line);
 
@@ -416,7 +422,6 @@ int main()
     textrecord.str("");
     stringstream objcode;
     string begin_addr;
-    exit(0);
     while (operation != "END")
     {
         //cout << iscomment;
@@ -473,38 +478,50 @@ int main()
                     objcode << newoperand;
                 }
             }
-            if (operation == "RESW" || "RESB")
+            cout << objcode.str() << endl;
+            if (operation == "RESW" || operation == "RESB")
             {
                 if(textrecord.str() == "")
                 {
                     begin_addr = "T" + addr;
                 }
-                fin >> begin_addr >> to_hex(text_record.str().size()).substr(2,2) >> textrecord.str();
+                fout << begin_addr << " "<<to_hex(textrecord.str().size()).substr(2,2) << textrecord.str()<<endl;
+                //cout<< to_hex(textrecord.str().size())<<" byte"<<endl;
+
                 textrecord.str("");
             }
             else
             {
-                if (textrecord.str().size() > 63)
+                if (textrecord.str().size() > 53)
                 {
-                    fin >> begin_addr >> to_hex(text_record.str().size()).substr(2,2) >> textrecord.str();
+                    cout<< textrecord.str().size()<<endl;
+                    fout << begin_addr <<" "<< to_hex(textrecord.str().size()).substr(2,2) << textrecord.str()<<endl;
                     begin_addr = "T" + addr;
                     textrecord.str("");
-                    textrecord >> objcode.str();
+                    textrecord << objcode.str();
+                    objcode.str("");
                 }
                 else if (textrecord.str() == "")
                 {
                     begin_addr = "T" + addr;
-                    textrecord >> objcode.str();
+                    textrecord << objcode.str();
+                    objcode.str("");
                 }
                 else
                 {
-                    textrecord >> objcode.str();
+                    textrecord << objcode.str();
+                    objcode.str("");
                 }
                 
             }
         }
-
+        
         read_line2(fin, parsed, code_line);
     }
+    if(textrecord.str() != "")
+    {
+        fout << begin_addr <<" "<< to_hex(textrecord.str().size()).substr(2,2) << textrecord.str()<<endl;
+    }
+    fout <<"E"<<pad_zero(start_address);
     return 0;
 }
