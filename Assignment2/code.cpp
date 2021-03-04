@@ -56,6 +56,8 @@ string real_operand;
 int indirect = 0, immediate = 0, indexed = 0,  base_relative = 0, pc_relative = 0, extended = 0;
 int instruction_length = 0;
 bool wasReserve = false;
+//Modification record;
+stringstream modRec("");
 
 void init_opcode()
 {
@@ -637,16 +639,16 @@ int main(int argc, char *argv[])
                 {
                     operand_address1 = symtab[operand];
                     operand_address2 = "0";
-                    wasReserve = false;
                     objcode << opcode << operand_address1 << operand_address2;
-                    listing << code_line  << " " << objcode.str() << endl;
-                    cout << objcode.str() << endl;
-                    objcode.str("");
-                    goto end_of_loop;
+
+                    goto text_record_write;
+                    // listing << code_line  << " " << objcode.str() << endl;
+                    // cout << objcode.str() << endl;
+                    // objcode.str("");
+                    //goto end_of_loop;
                 }
                 else  if(operation == "COMPR")
                 {
-                    wasReserve = false;
                     if(operand.size() != 3)
                         cout << "Error: Invalid operand " << operand << endl;
                     operand1 = operand.substr(0,1);
@@ -655,20 +657,21 @@ int main(int argc, char *argv[])
                         cout << "Error: Invalid operand " << operand << endl;
                     operand_address1 = symtab[operand1];
                     operand_address2 = symtab[operand2];
-
                     objcode << opcode << operand_address1 << operand_address2;
-                    listing << code_line << " " << objcode.str() << endl;
-                    objcode.str("");
-                    goto end_of_loop;
+                    goto text_record_write;
+                    
+                    // listing << code_line << " " << objcode.str() << endl;
+                    // objcode.str("");
+                    // goto end_of_loop;
                 }
                 string final = operand;
                 instruction_length = 3;
-                cout << operation << " " << operand << endl;
+                //cout << operation << " " << operand << endl;
 
                 
                 if(operand.size() > 0 && operand.find(",X") < operand.size())
                 {
-                    cout << "Indexed" << endl;
+                    //cout << "Indexed" << endl;
                     indexed = 1;
                     final = operand.substr(0,operand.size()-2);
                     if(symtab.find(final) == symtab.end())
@@ -680,7 +683,7 @@ int main(int argc, char *argv[])
                 }
                 else if(operand.size() > 1 && operand[0] == '@')
                 {
-                    cout << "Indirect" << endl;
+                    //cout << "Indirect" << endl;
                     indirect = 1;
                     immediate = 0;
                     final = operand.substr(1,operand.size()-1);
@@ -693,7 +696,7 @@ int main(int argc, char *argv[])
                 }
                 else if(operand.size() > 1 && operand[0] == '#')
                 {
-                    cout << "Immediate" << endl;
+                    //cout << "Immediate" << endl;
                     //cout << "imm" << endl;
                     immediate = 1;
                     indirect = 0;
@@ -735,12 +738,12 @@ int main(int argc, char *argv[])
 
                 if(operation[0] == '+')
                 { 
-                    cout << "Extended" << endl;
+                    //cout << "Extended" << endl;
                     instruction_length = 4;
                 }
                 else
                 {
-                    cout << "Normal" << endl;
+                    //cout << "Normal" << endl;
                     long long diff = from_hex(final) - (from_hex(addr)+instruction_length);
                     long long diff2 = from_hex(final) - from_hex(base_address);
                     if(diff >= -2048 && diff <= 2047)
@@ -765,15 +768,19 @@ int main(int argc, char *argv[])
                 {
                     extended = 1;
                     objcode << pad_zero(trim(to_hex(from_hex(opcode) + 2*indirect + 1*immediate)),2) <<  pad_zero(trim(to_hex( (long long)(indexed*8 + base_relative*4 + pc_relative*2 + extended))),1) << pad_zero(final,5);
-                    cout << objcode.str();
+                    if(!(immediate ==1 && isDecimal(operand.substr(1))))
+                    {
+                        modRec << "M" << pad_zero(to_hex((from_hex(addr) + 1)),6) << "05" << endl;
+                    }
+                    //cout << objcode.str();
                 }
                 else
                 {
                     //cout << "check3" << endl;
                     objcode << pad_zero(trim(to_hex(from_hex(opcode) + 2*indirect + 1*immediate)),2) <<  pad_zero(trim(to_hex( (long long)(indexed*8 + base_relative*4 + pc_relative*2 + extended))),1) <<  pad_zero(trim(final),3);
-                    cout << objcode.str() << endl;
+                    //cout << objcode.str() << endl;
                 }
-                cout << endl << endl;
+                //cout << endl << endl;
                 // string symbol = isSymbol(operand);
 
                 // if (symbol != "")
@@ -818,7 +825,7 @@ int main(int argc, char *argv[])
                     objcode << newoperand;
                 }
             }
-
+            text_record_write:
             if (operation == "RESW" || operation == "RESB")
             {
                 listing << code_line << endl;
@@ -837,6 +844,7 @@ int main(int argc, char *argv[])
             }
             else
             {
+                
                 wasReserve = false;
                 if (textrecord.str().size() > 54)
                 {
@@ -874,6 +882,7 @@ int main(int argc, char *argv[])
         fout << begin_addr << to_hex((textrecord.str().size()) / 2).substr(2, 2) << textrecord.str() << endl;
     }
     listing << code_line << endl;
+    fout << modRec.str();
     fout << "E" << pad_zero(start_address);
 
     listing.close();
