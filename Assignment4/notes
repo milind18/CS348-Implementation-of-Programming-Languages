@@ -1,0 +1,3 @@
+The yylval global variable is used to pass the semantic value associated with a token from the lexer to the parser. The semantic values of symbols are accessed in yacc actions as $1, $2, etc and are set for non-terminals by assigning to $$. Terminals come from the lexer which needs some way of communicating the semantic value to the parser. In a reentrant scanner, yylval generally becomes a reference argument to yylex rather than a global variable, but otherwise serves the same purpose.
+
+In your specific example, the token INT has a semantic value which is the value of the integer read. Since there are no %type/%union declarations in the yacc code, the semantic values just get default int type, which is just fine for holding an integer value.
